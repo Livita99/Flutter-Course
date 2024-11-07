@@ -87,7 +87,7 @@ void main() {
   String lastName = stdin.readLineSync() ?? '';
 
   final player = Player(firstName, lastName);
-  final quiz = Quiz('General Knowledge');
+  final quiz = Quiz('IT Knowledge');
 
   quiz.addQuestion(const Question(
     'Which of the following is a programming language?',
@@ -100,6 +100,21 @@ void main() {
     ['Virus', 'Worm', 'Firewall', 'Trojan'],
     ['Virus', 'Worm', 'Trojan'],
   ));
+
+  quiz.addQuestion(const Question(
+      'Which of the following are concepts of OOP? (Pick all that apply. e.g., "1,2,3")',
+      ['HTML', 'Inheritance', 'Encapsulation', 'Polymorphism'],
+      ['Inheritance', 'Encapsulation', 'Polymorphism']));
+
+  quiz.addQuestion(const Question(
+      'What is the primary purpose of a firewall in network security?', [
+    'To encrypt data',
+    'To block unauthorized access',
+    'To scan for viruses',
+    'To detect phishing attacks'
+  ], [
+    'To block unauthorized access'
+  ]));
 
   quiz.startQuiz(player);
 }
