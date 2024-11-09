@@ -1,120 +1,182 @@
 import 'dart:io';
 
-class Player {
+class Participant {
   final String firstName;
   final String lastName;
 
-  Player(this.firstName, this.lastName);
+  Participant(this.firstName, this.lastName);
 }
 
-class Question {
+abstract class Question {
   final String questionText;
   final List<String> options;
-  final List<String> correctAnswers;
 
-  const Question(this.questionText, this.options, this.correctAnswers);
+  Question(this.questionText, this.options);
+
+  bool checkAnswer(List<int> selectedIndices);
+}
+
+class SingleChoiceQuestion extends Question {
+  final int correctAnswerIndex;
+
+  SingleChoiceQuestion(
+      String questionText, List<String> options, this.correctAnswerIndex)
+      : super(questionText, options);
+
+  @override
+  bool checkAnswer(List<int> selectedIndices) {
+    return selectedIndices.length == 1 &&
+        selectedIndices.first == correctAnswerIndex;
+  }
+}
+
+class MultipleChoiceQuestion extends Question {
+  final List<int> correctAnswerIndices;
+
+  MultipleChoiceQuestion(
+      String questionText, List<String> options, this.correctAnswerIndices)
+      : super(questionText, options);
+
+  @override
+  bool checkAnswer(List<int> selectedIndices) {
+    var selectedSet = Set.from(selectedIndices);
+    var correctSet = Set.from(correctAnswerIndices);
+
+    bool isCorrect = selectedSet.length == correctSet.length &&
+        selectedSet.containsAll(correctSet);
+    return isCorrect;
+  }
+}
+
+class Result {
+  final Participant participant;
+  int score = 0;
+
+  Result(this.participant);
+
+  void incrementScore() {
+    score++;
+  }
+
+  void displayResult(int totalQuestions) {
+    print(
+        '${participant.firstName} ${participant.lastName}, your score is $score/$totalQuestions\n');
+  }
 }
 
 class Quiz {
   final String title;
-  final List<Question> questions;
+  final List<Question> questions = [];
 
-  Quiz(this.title) : questions = [];
+  Quiz(this.title);
 
   void addQuestion(Question question) {
     questions.add(question);
   }
 
-  void startQuiz(Player player) {
-    print('\nWelcome ${player.firstName} ${player.lastName}!');
-    print('Starting Quiz: $title');
-    int score = 0;
+  Result takeQuiz(Participant participant) {
+    final result = Result(participant);
 
-    // Loop through each question in the quiz
+    print('\nStarting Quiz: $title\n');
     for (var question in questions) {
-      // Display question and options
-      print(question.questionText);
-      for (int i = 0; i < question.options.length; i++) {
-        print('${i + 1}. ${question.options[i]}');
-      }
+      _displayQuestion(question);
 
-      String? answer = stdin.readLineSync();
-      if (answer != null && answer.isNotEmpty) {
-        try {
-          // Split the input answer
-          List<int> answerIndices =
-              answer.split(',').map((a) => int.parse(a.trim()) - 1).toList();
-          List<String> selectedAnswers = [];
-
-          // Get selected answers
-          for (int index in answerIndices) {
-            if (index >= 0 && index < question.options.length) {
-              selectedAnswers.add(question.options[index]);
-            }
-          }
-
-          // Check for correct answers
-          if (selectedAnswers.isEmpty) {
-            print('No valid options selected. Please try again.\n');
-          } else if (selectedAnswers
-                  .toSet()
-                  .containsAll(question.correctAnswers.toSet()) &&
-              selectedAnswers.length == question.correctAnswers.length) {
-            score++;
-            print('Correct!\n');
-          } else {
-            print(
-                'Wrong! The correct answers were: ${question.correctAnswers.join(', ')}\n');
-          }
-        } catch (e) {
-          print(
-              'Invalid input. Please enter a number corresponding to the options.\n');
-        }
+      List<int> selectedIndices = _getAnswerInput(question.options.length);
+      if (question.checkAnswer(selectedIndices)) {
+        result.incrementScore();
+        print("Correct!\n");
       } else {
-        print('You must enter at least one answer.\n');
+        print("Incorrect.\n");
       }
     }
-    print(
-        'Quiz finished! ${player.firstName} ${player.lastName}, your score is $score/${questions.length}');
+    return result;
+  }
+
+  void _displayQuestion(Question question) {
+    print(question.questionText);
+    for (int i = 0; i < question.options.length; i++) {
+      print('${i + 1}. ${question.options[i]}');
+    }
+    print("Enter your answer(s): (For multiple answers, separate with commas)");
+  }
+
+  List<int> _getAnswerInput(int optionsCount) {
+    String? answer = stdin.readLineSync();
+    if (answer == null || answer.isEmpty) return [];
+
+    List<int> parsedAnswers = answer
+        .split(',')
+        .map((a) => int.tryParse(a.trim()) ?? -1)
+        .where((index) => index > 0 && index <= optionsCount)
+        .map((index) => index - 1)
+        .toList();
+    return parsedAnswers;
   }
 }
 
 void main() {
-  print('Enter your first name:');
-  String firstName = stdin.readLineSync() ?? '';
+  final quiz = Quiz('IT Quiz');
+  final results = <Result>[];
 
-  print('Enter your last name:');
-  String lastName = stdin.readLineSync() ?? '';
-
-  final player = Player(firstName, lastName);
-  final quiz = Quiz('IT Knowledge');
-
-  quiz.addQuestion(const Question(
+  quiz.addQuestion(SingleChoiceQuestion(
     'Which of the following is a programming language?',
     ['Python', 'HTTP', 'FTP', 'HTML'],
-    ['Python'],
+    0,
   ));
 
-  quiz.addQuestion(const Question(
-    'Which of the following are types of cybersecurity threats? (Pick all that apply. e.g., "1,2,3")',
+  quiz.addQuestion(MultipleChoiceQuestion(
+    'Which of the following are types of cybersecurity threats? (Select all that apply)',
     ['Virus', 'Worm', 'Firewall', 'Trojan'],
-    ['Virus', 'Worm', 'Trojan'],
+    [0, 1, 3],
   ));
 
-  quiz.addQuestion(const Question(
-      'Which of the following are concepts of OOP? (Pick all that apply. e.g., "1,2,3")',
-      ['HTML', 'Inheritance', 'Encapsulation', 'Polymorphism'],
-      ['Inheritance', 'Encapsulation', 'Polymorphism']));
+  while (true) {
+    print('\n----- Main Menu -----');
+    print('1. Take a Quiz');
+    print('2. View results');
+    print('3. Exit');
+    print('Enter your choice:');
 
-  quiz.addQuestion(const Question(
-      'What is the primary purpose of a firewall in network security?', [
-    'To encrypt data',
-    'To block unauthorized access',
-    'To scan for viruses',
-    'To detect phishing attacks'
-  ], [
-    'To block unauthorized access'
-  ]));
+    String? choice = stdin.readLineSync();
 
-  quiz.startQuiz(player);
+    switch (choice) {
+      case '1':
+        _startQuiz(quiz, results);
+        break;
+      case '2':
+        _displayResults(results, quiz.questions.length);
+        break;
+      case '3':
+        print('Exit Successfully...');
+        return;
+      default:
+        print('Invalid choice. Please try again.');
+    }
+  }
+}
+
+void _startQuiz(Quiz quiz, List<Result> results) {
+  print("Enter your first name:");
+  String firstName = stdin.readLineSync() ?? '';
+
+  print("Enter your last name:");
+  String lastName = stdin.readLineSync() ?? '';
+
+  final participant = Participant(firstName, lastName);
+  final result = quiz.takeQuiz(participant);
+
+  results.add(result);
+  result.displayResult(quiz.questions.length);
+}
+
+void _displayResults(List<Result> results, int quizLength) {
+  if (results.isEmpty) {
+    print("No results to display.\n");
+    return;
+  }
+
+  print("\n--- Quiz Results ---");
+  for (var result in results) {
+    result.displayResult(quizLength);
+  }
 }
