@@ -37,13 +37,46 @@ class _ExpenseFormState extends State<ExpenseForm> {
   void onAdd() {
     // 1- Get the values from inputs
     String title = _titleController.text;
-    double amount = double.parse(_valueController.text);
+    double? amount = double.tryParse(_valueController.text);
 
     if (_selectedCategory == null || _selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please select a category and date'),
-            duration: Duration(seconds: 3)),
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Invalid Input'),
+            content: const Text('Please select a category and date'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Okay'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    if (title.isEmpty || amount == null) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Invalid Input'),
+            content: const Text('The title and amount cannot be empty.'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Okay'),
+              ),
+            ],
+          );
+        },
       );
       return;
     }
@@ -85,86 +118,83 @@ class _ExpenseFormState extends State<ExpenseForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(10.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: _titleController,
-              maxLength: 50,
-              decoration: const InputDecoration(
-                label: Text('Title'),
+    return Padding(
+      padding: const EdgeInsets.all(10.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _titleController,
+            maxLength: 50,
+            decoration: const InputDecoration(
+              label: Text('Title'),
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: <TextInputFormatter>[
+                    FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d+\.?\d{0,2}')),
+                  ],
+                  controller: _valueController,
+                  maxLength: 50,
+                  decoration: const InputDecoration(
+                    prefix: Text('\$ '),
+                    label: Text('Amount'),
+                  ),
+                ),
               ),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    keyboardType:
-                        TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: <TextInputFormatter>[
-                      FilteringTextInputFormatter.allow(
-                          RegExp(r'^\d+\.?\d{0,2}')),
-                    ],
-                    controller: _valueController,
-                    maxLength: 50,
-                    decoration: const InputDecoration(
-                      prefix: Text('\$ '),
-                      label: Text('Amount'),
-                    ),
-                  ),
+              const Spacer(),
+              Text(
+                _selectedDate == null
+                    ? 'No date selected'
+                    : 'Selected Date: ${DateFormat('dd-MM-yyyy').format(_selectedDate!)}',
+                style: const TextStyle(fontSize: 18),
+              ),
+              IconButton(
+                onPressed: () => _pickDate(context),
+                icon: const Icon(Icons.calendar_month),
+              ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              DropdownButton(
+                value: _selectedCategory,
+                onChanged: onChanged,
+                items: _dropdownItems.map((Category category) {
+                  return DropdownMenuItem(
+                    value: category,
+                    child:
+                        Text(category.toString().split('.').last.toUpperCase()),
+                  );
+                }).toList(),
+              ),
+              const Spacer(),
+              ElevatedButton(
+                onPressed: onCancel,
+                style: ElevatedButton.styleFrom(
+                  elevation: 0,
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
                 ),
-                const Spacer(),
-                Text(
-                  _selectedDate == null
-                      ? 'No date selected'
-                      : 'Selected Date: ${DateFormat('dd-MM-yyyy').format(_selectedDate!)}',
-                  style: const TextStyle(fontSize: 18),
+                child: const Text('Cancel'),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton(
+                onPressed: onAdd,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[100],
                 ),
-                IconButton(
-                  onPressed: () => _pickDate(context),
-                  icon: const Icon(Icons.calendar_month),
-                ),
-              ],
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                DropdownButton(
-                  value: _selectedCategory,
-                  onChanged: onChanged,
-                  items: _dropdownItems.map((Category category) {
-                    return DropdownMenuItem(
-                      value: category,
-                      child: Text(
-                          category.toString().split('.').last.toUpperCase()),
-                    );
-                  }).toList(),
-                ),
-                const Spacer(),
-                ElevatedButton(
-                  onPressed: onCancel,
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                  ),
-                  child: const Text('Cancel'),
-                ),
-                const SizedBox(width: 10),
-                ElevatedButton(
-                  onPressed: onAdd,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[100],
-                  ),
-                  child: const Text('Save Expense'),
-                ),
-              ],
-            ),
-          ],
-        ),
+                child: const Text('Save Expense'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
